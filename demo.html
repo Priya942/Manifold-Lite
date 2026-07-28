@@ -128,19 +128,24 @@
   .node-circle.done{fill:var(--copper);stroke:var(--copper);}
   .node-num{font-family:'IBM Plex Mono',monospace;font-size:13px;fill:var(--paper);font-weight:600;}
 
-  /* ---- Stage panels ---- */
-  .stage{
+  /* ---- Stage panels (full-screen wizard steps) ---- */
+  .stage{display:none;}
+  .stage.active{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    min-height:calc(100vh - 300px);
     background:var(--panel);
-    border:1px solid var(--panel-line);
-    border-radius:6px;
-    padding:20px 22px;
-    margin:14px 0;
-    opacity:.4;
-    pointer-events:none;
-    transition:opacity .2s ease;
+    border:1px solid var(--blueprint);
+    border-radius:8px;
+    padding:40px 32px;
+    margin:20px 0;
+    animation:stepIn .3s ease;
   }
-  .stage.active{opacity:1;pointer-events:auto;border-color:var(--blueprint);}
-  .stage.complete{opacity:1;pointer-events:auto;}
+  @keyframes stepIn{
+    from{opacity:0;transform:translateY(12px);}
+    to{opacity:1;transform:translateY(0);}
+  }
   .stage h2{
     font-family:'IBM Plex Mono',monospace;
     font-size:13px;
@@ -150,7 +155,6 @@
     color:var(--cyan-line);
     display:flex;align-items:center;gap:8px;
   }
-  .stage.complete h2{color:var(--copper);}
   .stage h2 .tick{font-size:15px;}
 
   .field-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
@@ -400,13 +404,11 @@
   function setActiveStage(idx){
     state.current = idx;
     STAGES.forEach((s,i)=>{
-      const el = $("stage-"+s);
-      el.classList.remove("active","complete");
-      if(i < idx) el.classList.add("complete");
-      if(i === idx) el.classList.add("active");
+      $("stage-"+s).classList.toggle("active", i === idx);
     });
-    stateReadout.textContent = "state: " + STAGES[idx];
+    stateReadout.textContent = "state: " + STAGES[idx] + " (step " + (idx+1) + " of " + STAGES.length + ")";
     renderSchematic();
+    window.scrollTo({top:0, behavior:"smooth"});
   }
 
   function showReadout(stage, data, isErr){
