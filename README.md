@@ -9,9 +9,10 @@ no framework, nothing to `pip install`.
 ## Files
 
 - `schema.sql` — table definitions
-- `server.py` — the HTTP API server
+- `server.py` — the HTTP API server (also serves `demo.html` at `/`)
 - `seed.py` — creates the DB and inserts sample technicians + proposals
 - `demo_client.py` — script that walks the full flow end-to-end against a running server
+- `demo.html` — browser-based live demo UI; walks proposal → sign → dispatch → complete → invoice → pay against the real API
 - `README.md` — this file
 
 ## Run it locally
@@ -82,8 +83,10 @@ frontend can call it directly from a browser.
    curl https://manifold-lite.onrender.com/api/health
    ```
 
-5. **Point the demo frontend at it** — update the base API URL in
-   `manifold-demo-live.html` to the Render URL instead of `localhost:8000`.
+5. **Open the demo** — just visit the Render URL itself in a browser
+   (e.g. `https://manifold-lite.onrender.com`). `server.py` serves
+   `demo.html` at `/`, and the page auto-connects to its own origin,
+   so there's nothing to configure — no separate file, no URL to paste.
 
 The server already reads the `PORT` environment variable and binds to
 `0.0.0.0`, both of which Render requires — no code changes needed to deploy.
