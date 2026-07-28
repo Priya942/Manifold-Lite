@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manifold — Live Flow</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --ink:#14181D;
+    --paper:#EDEEE9;
+    --blueprint:#1B4B66;
+    --blueprint-deep:#102F41;
+    --cyan-line:#6FC6D6;
+    --copper:#C17F45;
+    --amber:#D9A23B;
+    --ok:#5A9E6F;
+    --err:#C15C4A;
+    --panel:#1D2530;
+    --panel-line:#2C3847;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 80px;}
+
+  header.top{margin-bottom:28px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--cyan-line);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'IBM Plex Serif',serif;
+    font-weight:600;
+    font-size:34px;
+    margin:0 0 8px;
+    letter-spacing:-.01em;
+  }
+  .sub{color:#9BA6AF;font-size:14.5px;max-width:56ch;line-height:1.5;margin:0;}
+
+  /* ---- Connection bar ---- */
+  .connect-bar{
+    display:flex;gap:8px;margin:20px 0 8px;flex-wrap:wrap;
+  }
+  input[type=text], input[type=number]{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    color:var(--paper);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    padding:10px 12px;
+    border-radius:4px;
+    flex:1;
+    min-width:220px;
+  }
+  input::placeholder{color:#5C6773;}
+  input:focus{outline:2px solid var(--cyan-line);outline-offset:1px;}
+
+  button{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    padding:10px 18px;
+    border-radius:4px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:filter .12s ease, transform .12s ease;
+  }
+  button:active{transform:translateY(1px);}
+  button:focus-visible{outline:2px solid var(--cyan-line);outline-offset:2px;}
+  button:disabled{opacity:.35;cursor:not-allowed;}
+
+  .btn-primary{background:var(--copper);color:#1A1000;}
+  .btn-primary:hover:not(:disabled){filter:brightness(1.1);}
+  .btn-ghost{background:transparent;border-color:var(--panel-line);color:var(--paper);}
+  .btn-ghost:hover:not(:disabled){border-color:var(--cyan-line);}
+
+  .status-pill{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    padding:5px 10px;
+    border-radius:20px;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border:1px solid var(--panel-line);
+  }
+  .status-pill .dot{width:7px;height:7px;border-radius:50%;background:#5C6773;}
+  .status-pill.live .dot{background:var(--ok);box-shadow:0 0 6px var(--ok);}
+  .status-pill.down .dot{background:var(--err);}
+
+  /* ---- Schematic flow diagram (signature element) ---- */
+  .schematic{margin:32px 0 8px;}
+  .schematic svg{width:100%;height:auto;display:block;}
+  .node-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    fill:#7C8894;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+  }
+  .node-label.active{fill:var(--cyan-line);}
+  .node-label.done{fill:var(--copper);}
+  .pipe{stroke:#2C3847;stroke-width:3;fill:none;}
+  .pipe-fill{
+    stroke:var(--copper);
+    stroke-width:3;
+    fill:none;
+    stroke-dasharray:8 6;
+    animation:flow 1.1s linear infinite;
+  }
+  @keyframes flow{to{stroke-dashoffset:-28;}}
+  .node-circle{fill:var(--panel);stroke:#2C3847;stroke-width:2;}
+  .node-circle.active{stroke:var(--cyan-line);filter:drop-shadow(0 0 5px rgba(111,198,214,.5));}
+  .node-circle.done{fill:var(--copper);stroke:var(--copper);}
+  .node-num{font-family:'IBM Plex Mono',monospace;font-size:13px;fill:var(--paper);font-weight:600;}
+
+  /* ---- Stage panels ---- */
+  .stage{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:6px;
+    padding:20px 22px;
+    margin:14px 0;
+    opacity:.4;
+    pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .stage.active{opacity:1;pointer-events:auto;border-color:var(--blueprint);}
+  .stage.complete{opacity:1;pointer-events:auto;}
+  .stage h2{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin:0 0 14px;
+    color:var(--cyan-line);
+    display:flex;align-items:center;gap:8px;
+  }
+  .stage.complete h2{color:var(--copper);}
+  .stage h2 .tick{font-size:15px;}
+
+  .field-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .field-row label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:#7C8894;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    display:block;
+    margin-bottom:4px;
+  }
+  .field{flex:1;min-width:160px;}
+
+  select{
+    background:var(--ink);
+    border:1px solid var(--panel-line);
+    color:var(--paper);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    padding:10px 12px;
+    border-radius:4px;
+    width:100%;
+  }
+
+  textarea{
+    background:var(--ink);
+    border:1px solid var(--panel-line);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:10px 12px;
+    border-radius:4px;
+    width:100%;
+    resize:vertical;
+    min-height:60px;
+  }
+
+  .readout{
+    background:var(--ink);
+    border:1px solid var(--panel-line);
+    border-radius:4px;
+    padding:12px 14px;
+    margin-top:12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:#8FD6A8;
+    white-space:pre-wrap;
+    word-break:break-word;
+    max-height:220px;
+    overflow:auto;
+  }
+  .readout.err{color:var(--err);}
+  .readout:empty{display:none;}
+
+  .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+
+  footer{
+    margin-top:36px;
+    padding-top:18px;
+    border-top:1px solid var(--panel-line);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:#5C6773;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .pipe-fill{animation:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Manifold · Live</p>
+    <h1>The job, end to end.</h1>
+    <p class="sub">This runs against your real deployed backend — every click below is an actual API call, not a simulation. Point it at your Render URL to begin.</p>
+  </header>
+
+  <div class="connect-bar">
+    <input type="text" id="baseUrl" placeholder="https://your-service.onrender.com">
+    <button class="btn-primary" id="connectBtn">Connect</button>
+    <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Not connected</span></span>
+  </div>
+
+  <div class="schematic">
+    <svg viewBox="0 0 860 90" xmlns="http://www.w3.org/2000/svg">
+      <!-- base pipe -->
+      <path class="pipe" d="M40,45 H820" />
+      <path class="pipe-fill" id="pipeFill" d="M40,45 H40" />
+      <!-- nodes -->
+      <g id="nodes"></g>
+    </svg>
+  </div>
+
+  <!-- Stage 1: Proposal -->
+  <section class="stage active" id="stage-proposal">
+    <h2><span class="tick">①</span> Draft proposal</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="custName">Customer name</label>
+        <input type="text" id="custName" placeholder="Jordan Park">
+      </div>
+      <div class="field">
+        <label for="custAddr">Address</label>
+        <input type="text" id="custAddr" placeholder="77 Maple Ave">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex:2;">
+        <label for="jobDesc">Job description</label>
+        <input type="text" id="jobDesc" placeholder="Install ductless mini-split, 2 zones">
+      </div>
+      <div class="field">
+        <label for="jobAmount">Amount (USD)</label>
+        <input type="number" id="jobAmount" placeholder="6200.00" step="0.01">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" id="createProposalBtn" disabled>Create proposal</button>
+    </div>
+    <div class="readout" id="readout-proposal"></div>
+  </section>
+
+  <!-- Stage 2: Sign -->
+  <section class="stage" id="stage-sign">
+    <h2><span class="tick">②</span> Sign proposal</h2>
+    <p class="sub" style="margin-bottom:12px;">Signing creates the order that carries this job through the rest of the pipeline.</p>
+    <div class="actions">
+      <button class="btn-primary" id="signBtn">Sign proposal</button>
+    </div>
+    <div class="readout" id="readout-sign"></div>
+  </section>
+
+  <!-- Stage 3: Dispatch -->
+  <section class="stage" id="stage-dispatch">
+    <h2><span class="tick">③</span> Dispatch technician</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="techSelect">Technician</label>
+        <select id="techSelect"><option value="">Loading technicians…</option></select>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" id="dispatchBtn">Dispatch</button>
+    </div>
+    <div class="readout" id="readout-dispatch"></div>
+  </section>
+
+  <!-- Stage 4: Field completion -->
+  <section class="stage" id="stage-complete">
+    <h2><span class="tick">④</span> Field completion</h2>
+    <div class="field-row">
+      <div class="field" style="flex:1 1 100%;">
+        <label for="fieldNotes">Technician notes</label>
+        <textarea id="fieldNotes" placeholder="Installed both indoor units, tested airflow, customer signed off."></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" id="completeBtn">Mark job complete</button>
+    </div>
+    <div class="readout" id="readout-complete"></div>
+  </section>
+
+  <!-- Stage 5: Invoice -->
+  <section class="stage" id="stage-invoice">
+    <h2><span class="tick">⑤</span> Generate invoice</h2>
+    <div class="actions">
+      <button class="btn-primary" id="invoiceBtn">Generate invoice</button>
+    </div>
+    <div class="readout" id="readout-invoice"></div>
+  </section>
+
+  <!-- Stage 6: Payment -->
+  <section class="stage" id="stage-pay">
+    <h2><span class="tick">⑥</span> Record payment</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="payMethod">Method</label>
+        <select id="payMethod">
+          <option value="card">Card</option>
+          <option value="ach">ACH</option>
+          <option value="check">Check</option>
+        </select>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" id="payBtn">Record payment</button>
+      <button class="btn-ghost" id="resetBtn">Start a new job</button>
+    </div>
+    <div class="readout" id="readout-pay"></div>
+  </section>
+
+  <footer>
+    <span>Manifold Lite — schema.sql · server.py · seed.py</span>
+    <span id="stateReadout">state: idle</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const STAGES = ["proposal","sign","dispatch","complete","invoice","pay"];
+  let base = "";
+  let state = { proposalId:null, orderId:null, dispatchId:null, invoiceId:null, current:0 };
+
+  const $ = (id) => document.getElementById(id);
+  const statusPill = $("statusPill");
+  const statusText = $("statusText");
+  const stateReadout = $("stateReadout");
+
+  // ---- Build schematic nodes ----
+  const nodesG = $("nodes");
+  const NODE_X = [40, 200, 360, 520, 680, 820];
+  const LABELS = ["Proposal","Sign","Dispatch","Complete","Invoice","Paid"];
+  NODE_X.forEach((x, i) => {
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+    g.setAttribute("id","node-"+i);
+    const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    circle.setAttribute("cx", x); circle.setAttribute("cy", 45); circle.setAttribute("r", 14);
+    circle.setAttribute("class","node-circle");
+    const num = document.createElementNS("http://www.w3.org/2000/svg","text");
+    num.setAttribute("x", x); num.setAttribute("y", 50); num.setAttribute("text-anchor","middle");
+    num.setAttribute("class","node-num"); num.textContent = (i+1);
+    const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+    label.setAttribute("x", x); label.setAttribute("y", 76); label.setAttribute("text-anchor","middle");
+    label.setAttribute("class","node-label"); label.textContent = LABELS[i];
+    g.appendChild(circle); g.appendChild(num); g.appendChild(label);
+    nodesG.appendChild(g);
+  });
+
+  function renderSchematic(){
+    NODE_X.forEach((x,i)=>{
+      const circle = document.querySelector("#node-"+i+" .node-circle");
+      const label = document.querySelector("#node-"+i+" .node-label");
+      circle.classList.remove("active","done");
+      label.classList.remove("active","done");
+      if(i < state.current){ circle.classList.add("done"); label.classList.add("done"); }
+      else if(i === state.current){ circle.classList.add("active"); label.classList.add("active"); }
+    });
+    const fillX = NODE_X[Math.min(state.current, NODE_X.length-1)];
+    $("pipeFill").setAttribute("d", `M40,45 H${fillX}`);
+  }
+
+  function setActiveStage(idx){
+    state.current = idx;
+    STAGES.forEach((s,i)=>{
+      const el = $("stage-"+s);
+      el.classList.remove("active","complete");
+      if(i < idx) el.classList.add("complete");
+      if(i === idx) el.classList.add("active");
+    });
+    stateReadout.textContent = "state: " + STAGES[idx];
+    renderSchematic();
+  }
+
+  function showReadout(stage, data, isErr){
+    const el = $("readout-"+stage);
+    el.classList.toggle("err", !!isErr);
+    el.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  }
+
+  async function call(method, path, body){
+    const res = await fetch(base + path, {
+      method,
+      headers: {"Content-Type":"application/json"},
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+    return data;
+  }
+
+  // ---- Connection ----
+  $("connectBtn").addEventListener("click", async () => {
+    let val = $("baseUrl").value.trim().replace(/\/$/, "");
+    if(!val){ return; }
+    base = val;
+    statusText.textContent = "Checking…";
+    statusPill.classList.remove("live","down");
+    try {
+      await call("GET", "/api/health");
+      statusPill.classList.add("live");
+      statusText.textContent = "Connected";
+      $("createProposalBtn").disabled = false;
+      loadTechnicians();
+    } catch(e){
+      statusPill.classList.add("down");
+      statusText.textContent = "Unreachable";
+    }
+  });
+
+  async function loadTechnicians(){
+    const sel = $("techSelect");
+    try {
+      const techs = await call("GET", "/api/technicians");
+      sel.innerHTML = "";
+      if(techs.length === 0){
+        sel.innerHTML = "<option value=''>No technicians on file</option>";
+        return;
+      }
+      techs.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = t.name + (t.phone ? " · " + t.phone : "");
+        sel.appendChild(opt);
+      });
+    } catch(e){
+      sel.innerHTML = "<option value=''>Couldn't load technicians</option>";
+    }
+  }
+
+  // ---- Stage 1: create proposal ----
+  $("createProposalBtn").addEventListener("click", async () => {
+    const name = $("custName").value.trim();
+    const addr = $("custAddr").value.trim();
+    const desc = $("jobDesc").value.trim();
+    const amount = parseFloat($("jobAmount").value);
+    if(!name || !addr || !desc || isNaN(amount)){
+      showReadout("proposal", "Fill in every field before creating the proposal.", true);
+      return;
+    }
+    try {
+      const data = await call("POST", "/api/proposals", {
+        customer_name:name, customer_address:addr, description:desc,
+        amount_cents: Math.round(amount*100)
+      });
+      state.proposalId = data.id;
+      showReadout("proposal", data);
+      setActiveStage(1);
+    } catch(e){ showReadout("proposal", e.message, true); }
+  });
+
+  // ---- Stage 2: sign ----
+  $("signBtn").addEventListener("click", async () => {
+    try {
+      const data = await call("POST", `/api/proposals/${state.proposalId}/sign`);
+      state.orderId = data.id;
+      showReadout("sign", data);
+      setActiveStage(2);
+    } catch(e){ showReadout("sign", e.message, true); }
+  });
+
+  // ---- Stage 3: dispatch ----
+  $("dispatchBtn").addEventListener("click", async () => {
+    const techId = $("techSelect").value;
+    if(!techId){ showReadout("dispatch", "Select a technician first.", true); return; }
+    try {
+      const data = await call("POST", `/api/orders/${state.orderId}/dispatch`, {technician_id: parseInt(techId,10)});
+      state.dispatchId = data.id;
+      showReadout("dispatch", data);
+      setActiveStage(3);
+    } catch(e){ showReadout("dispatch", e.message, true); }
+  });
+
+  // ---- Stage 4: complete ----
+  $("completeBtn").addEventListener("click", async () => {
+    try {
+      const data = await call("POST", `/api/dispatches/${state.dispatchId}/complete`, {notes: $("fieldNotes").value.trim()});
+      showReadout("complete", data);
+      setActiveStage(4);
+    } catch(e){ showReadout("complete", e.message, true); }
+  });
+
+  // ---- Stage 5: invoice ----
+  $("invoiceBtn").addEventListener("click", async () => {
+    try {
+      const data = await call("POST", `/api/orders/${state.orderId}/invoice`);
+      state.invoiceId = data.id;
+      showReadout("invoice", data);
+      setActiveStage(5);
+    } catch(e){ showReadout("invoice", e.message, true); }
+  });
+
+  // ---- Stage 6: pay ----
+  $("payBtn").addEventListener("click", async () => {
+    try {
+      const data = await call("POST", `/api/invoices/${state.invoiceId}/pay`, {method: $("payMethod").value});
+      showReadout("pay", data);
+      state.current = 6;
+      stateReadout.textContent = "state: paid — job closed";
+      renderSchematic();
+    } catch(e){ showReadout("pay", e.message, true); }
+  });
+
+  $("resetBtn").addEventListener("click", () => {
+    state = { proposalId:null, orderId:null, dispatchId:null, invoiceId:null, current:0 };
+    ["custName","custAddr","jobDesc","jobAmount","fieldNotes"].forEach(id => $(id).value = "");
+    STAGES.forEach(s => $("readout-"+s).textContent = "");
+    setActiveStage(0);
+  });
+
+  renderSchematic();
+
+  // If this page is being served by the backend itself (same origin),
+  // pre-fill and auto-connect instead of asking the user to paste a URL.
+  if(location.protocol.startsWith("http")){
+    $("baseUrl").value = location.origin;
+    $("connectBtn").click();
+  }
+})();
+</script>
+</body>
+</html>

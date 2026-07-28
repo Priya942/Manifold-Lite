@@ -24,6 +24,7 @@ from urllib.parse import urlparse
 
 DB_PATH = os.environ.get("MANIFOLD_DB_PATH", os.path.join(os.path.dirname(__file__), "manifold.db"))
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
+DEMO_HTML_PATH = os.path.join(os.path.dirname(__file__), "demo.html")
 PORT = int(os.environ.get("PORT", 8000))
 
 
@@ -346,7 +347,24 @@ class Handler(BaseHTTPRequestHandler):
 
         self._send_json(404, {"error": "no such route", "path": path, "method": method})
 
+    def _serve_demo_html(self):
+        try:
+            with open(DEMO_HTML_PATH, "rb") as f:
+                body = f.read()
+        except FileNotFoundError:
+            self._send_json(404, {"error": "demo.html not found"})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
+        path = urlparse(self.path).path
+        if path == "/":
+            self._serve_demo_html()
+            return
         self._dispatch("GET")
 
     def do_POST(self):
